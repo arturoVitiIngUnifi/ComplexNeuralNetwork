@@ -4,7 +4,7 @@ import random
 
 class Neuron:
     def __init__( self, inputs: List[complex], weights: Optional[List[complex]] = None,
-                  layerIndex: int = 0, isOutputLayer: bool = False ):
+                  layerIndex: int = 0, isOutputLayer: bool = False, learningRate: float = 0.0 ):
 
         if layerIndex < 0:
             raise ValueError('Neuron layerIndex must be >= 0')
@@ -12,15 +12,16 @@ class Neuron:
         self.inputs: List[complex] = inputs
         self.layerIndex: int = layerIndex
         self.isOutputLayer: bool = isOutputLayer
+        self.learningRate: float = learningRate
 
-        # If weights are not setted, initialize them with random complex numbers
+        # If weights are not set, initialize them with random complex numbers
         if weights is None:
             self.weights = [complex(random.random(), random.random()) for _ in inputs]
         else:
             self.weights = weights
 
 
-    def _getLinearCombination(self) -> complex:
+    def getLinearCombination(self) -> complex:
         """
             :return: Result of linear combination of inputs with weights.
         """
@@ -42,7 +43,7 @@ class Neuron:
             Get Output from Activation Function.
             :return: The Complex result
         """
-        z = self._getLinearCombination()
+        z = self.getLinearCombination()
         return self._activation(z)
 
 
