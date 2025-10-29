@@ -2,6 +2,16 @@ from typing import List, Optional
 import random
 
 
+def activation(z: complex) -> complex:
+    """
+        :param z: Linear combination of input with weights.
+        :return: Result of activation function
+    """
+    if abs(z) == 0:
+        return 0j  # Fallback
+    return z / abs(z)
+
+
 class Neuron:
     def __init__( self, inputs: List[complex], weights: Optional[List[complex]] = None,
                   layerIndex: int = 0, isOutputLayer: bool = False, learningRate: float = 0.0 ):
@@ -27,24 +37,13 @@ class Neuron:
         """
         return sum(w * x for w, x in zip(self.weights, self.inputs))
 
-
-    def _activation(self, z: complex) -> complex:
-        """
-            :param z: Linear combination of input with weights.
-            :return: Result of activation function
-        """
-        if abs(z) == 0:
-            return 0j  # Fallback
-        return z / abs(z)
-
-
     def output(self) -> complex:
         """
             Get Output from Activation Function.
             :return: The Complex result
         """
         z = self.getLinearCombination()
-        return self._activation(z)
+        return activation(z)
 
 
     def setWeights( self, weights: List[complex] ) -> None:
