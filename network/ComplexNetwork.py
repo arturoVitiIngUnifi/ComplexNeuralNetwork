@@ -202,7 +202,6 @@ class ComplexNetwork:
 
             # Update Weights
             for i in range(len(neuron.weights)):
-                print(i)
                 Y_prev = neuron.inputs[i]       # Out of previous layer is input for last layer
                 if i == 0:
                     grad = (alpha_km / (N_prev + 1)) * delta
