@@ -1,22 +1,26 @@
+import random
+
 from network.Neuron import Neuron
 from typing import List, Optional
 
 
 class ComplexNetwork:
-    def __init__( self, structure: List[int]):
+    def __init__( self, structure: List[int], learningRate: float = 0.01):
         """
             :param structure: list with the number of neuron for layer: es: [3, 4, 2]:
                 3 input, 4 hidden neurons, 2 output
         """
         self.structure = structure
         self.layers: List[List[Neuron]] = []
+        self.learningRate = learningRate
 
         for i in range(1, len(structure)):
             nInputs = structure[i - 1]
             nNeurons = structure[i]
             layer = [
                 Neuron(
-                    inputs=[0j] * nInputs, layerIndex=i, isOutputLayer=(i == len(structure) - 1)
+                    inputs=[0j] * nInputs, layerIndex=i, isOutputLayer=(i == len(structure) - 1),
+                    learningRate=learningRate
                 )
                 for _ in range(nNeurons)
             ]
@@ -70,7 +74,7 @@ class ComplexNetwork:
 
 
     def train( self, xTrain: List[List[complex]], yTrain: List[List[complex]], 
-               epochs: int = 10, errorThresholdToStop: float = 1e-3
+               epochs: int = 100, errorThresholdToStop: float = 1e-4, verbose: bool = True
     ):
         """
             Train the complex-valued neural network using the backpropagation algorithm.
@@ -91,6 +95,8 @@ class ComplexNetwork:
             :type epochs: int
             :param errorThresholdToStop: Mean error threshold for early stopping (default: 1e-3).
             :type errorThresholdToStop: float
+            :param verbose: Indicate if log training.
+            :type verbose: bool
             :return: List of mean errors per epoch, representing the training history.
             :rtype: List[float]
 
@@ -99,11 +105,14 @@ class ComplexNetwork:
 
                 history = net.train(xTrain, yTrain, epochs=100, errorThresholdToStop=1e-4)
         """
-        M = len(xTrain) # Samples Number
+        M = len(xTrain)
         history = []
 
         for epoch in range(epochs):
             totalError = 0.0
+
+            indices = list(range(M))
+            random.shuffle(indices)
 
             for r in range(M):
                 inputs = xTrain[r]
@@ -113,19 +122,17 @@ class ComplexNetwork:
                 self.backpropagation(inputs, targets)
 
                 sampleError = sum(abs(t - o) ** 2 for t, o in zip(targets, outputs)) / len(outputs)
-                real_error = sum((t.real - o.real) ** 2 for t, o in zip(targets, outputs)) / len(outputs)
-                imag_error = sum((t.imag - o.imag) ** 2 for t, o in zip(targets, outputs)) / len(outputs)
-                #print(f"Epoch {epoch + 1} | RealErr={real_error:.6f} | ImagErr={imag_error:.6f}")
-
                 totalError += sampleError
 
             meanErrorEpoch = totalError / M
             history.append(meanErrorEpoch)
 
-            #print(f"Epoch {epoch + 1}/{epochs} — Mean Error: {meanErrorEpoch:.6f}")
+            if verbose and (epoch % 50 == 0 or epoch == epochs - 1):
+                print(f"Epoch {epoch + 1}/{epochs} — Mean Error: {meanErrorEpoch:.6f}")
 
             if meanErrorEpoch < errorThresholdToStop:
-                #print("✅ Ended Training: Error Threshold Reached")
+                if verbose:
+                    print(f"✅ Training stopped: Error threshold reached at epoch {epoch + 1}")
                 break
 
         return history
@@ -134,6 +141,10 @@ class ComplexNetwork:
     def backpropagation( self, inputs: List[complex], targets: List[complex] ):
         """
             Perform one complete backpropagation step for a single training sample.
+            Backpropagation using REAL-VALUED gradient descent on complex parameters.
+
+            Key insight: Treat each complex weight w = a + ib as two real parameters (a, b).
+            The gradient is computed using the chain rule on the real MSE loss.
 
             This method executes both phases of the learning process for one sample:
               1. Feedforward — propagate the input through the network to compute outputs.
@@ -149,15 +160,12 @@ class ComplexNetwork:
             :type targets: List[complex]
             :return: None
         """
-        ### Epoch Start ###
-        # Propagate values
-        self.feedforward(inputs)
-
         # Calculate errors and update weights on Output Layer
         deltasOutput = self._backprop_output_layer(targets)
 
         # Calculate errors and update weights on Hidden Layers
-        self._backprop_hidden_layer(deltasOutput, inputs)
+        if len(self.layers) > 1:
+            self._backprop_hidden_layer(deltasOutput, inputs)
 
 
 
@@ -188,26 +196,24 @@ class ComplexNetwork:
             :rtype: List[complex]
         """
         output_layer = self.layers[-1]
-        # Previous of last layer
-        N_prev = len(self.layers[-2]) if len(self.layers) > 1 else len(output_layer[0].inputs)
         deltasOutput = []
 
         for k, neuron in enumerate(output_layer):
-            Y_km = neuron.output()
-            D_km = targets[k]
-            delta_star = D_km - Y_km
-            delta = delta_star / (N_prev + 1)   # Normalized Error
-            deltasOutput.append(delta)
-            alpha_km = neuron.learningRate
+            output = neuron.last_output
+            target = targets[k]
 
-            # Update Weights
-            for i in range(len(neuron.weights)):
-                Y_prev = neuron.inputs[i]       # Out of previous layer is input for last layer
-                if i == 0:
-                    grad = (alpha_km / (N_prev + 1)) * delta
-                else:
-                    grad = (alpha_km / (N_prev + 1)) * delta * Y_prev.conjugate()
-                neuron.weights[i] += grad
+            # Error signal
+            error = target - output
+            deltasOutput.append(error)
+
+            # Gradient for bias
+            grad_bias = error
+            neuron.weights[0] += neuron.learningRate * grad_bias
+
+            # Gradient for input weights
+            for i in range(len(neuron.inputs)):
+                grad = error * neuron.inputs[i].conjugate()
+                neuron.weights[i + 1] += neuron.learningRate * grad
 
         return deltasOutput
 
@@ -224,16 +230,9 @@ class ComplexNetwork:
             The process iterates backward from the last hidden layer to the first,
             propagating error corrections layer by layer.
 
-            Mathematical formulation:
-                δ_kj = (1 / (N_{j-1} + 1)) * Σ_i [ δ_{i,j+1} * conj(W_k^{i,j+1}) ]
-                ΔW = α / ((N_{j-1} + 1) * |Z_kj|) * δ_kj * conj(Y_prev)
-
-            Where:
-                - δ_kj: delta for neuron k in layer j
-                - W_k^{i,j+1}: weight from neuron k (layer j) to neuron i (layer j+1)
-                - Y_prev: output from the previous layer
-                - α: learning rate
-                - |Z_kj|: magnitude of the neuron's linear combination
+            Hidden layer backpropagation using split-complex chain rule.
+            The delta backpropagates as:
+            delta_j = sum_k(delta_k * w_jk*) ⊙ f'(z_j)
 
             :param deltasOutput: List of complex deltas computed for the output layer.
             :type deltasOutput: List[complex]
@@ -244,28 +243,41 @@ class ComplexNetwork:
         deltas_per_layer: List[Optional[List[complex]]] = [None] * len(self.layers)
         deltas_per_layer[-1] = deltasOutput
 
-        for j in reversed(range(len(self.layers) - 1)):
-            layer = self.layers[j]
-            next_layer = self.layers[j + 1]
-            N_prev = len(self.layers[j - 1]) if j > 0 else len(inputs)
+        # Backpropagate through hidden layers
+        for layer_idx in reversed(range(len(self.layers) - 1)):
+            layer = self.layers[layer_idx]
+            next_layer = self.layers[layer_idx + 1]
 
             deltas = []
-            for k, neuron in enumerate(layer):
-                # Update Errors
-                Z_kj = neuron.getLinearCombination()
-                absZ = abs(Z_kj) if abs(Z_kj) > 0 else 1
-                # δ_kj = (1/(N_{j-1}+1)) * Σ δ_{i,j+1} * (W_k^{i,j+1})
-                error_sum = 0j
-                for i, next_neuron in enumerate(next_layer):
-                    error_sum += deltas_per_layer[j + 1][i] * (1/next_neuron.weights[k])
+            for neuron_idx, neuron in enumerate(layer):
+                # Accumulate weighted error from next layer
+                weighted_error = 0j
+                for next_neuron_idx, next_neuron in enumerate(next_layer):
+                    next_delta = deltas_per_layer[layer_idx + 1][next_neuron_idx]
+                    # weights[neuron_idx + 1] because weights[0] is bias
+                    weight = next_neuron.weights[neuron_idx + 1]
+                    weighted_error += next_delta * weight.conjugate()
 
-                delta_kj = (1 / (N_prev + 1)) * error_sum
-                deltas.append(delta_kj)
+                # Apply activation derivative
+                # For split tanh: f'(z) = (1 - tanh²(Re)) + i*(1 - tanh²(Im))
+                output = neuron.last_output
+                deriv_real = 1.0 - output.real ** 2
+                deriv_imag = 1.0 - output.imag ** 2
 
-                # Update Weights
-                for i in range(len(neuron.weights)):
-                    Y_prev = neuron.inputs[i]
-                    grad = (neuron.learningRate / ((N_prev + 1) * absZ)) * delta_kj * Y_prev.conjugate()
-                    neuron.weights[i] += grad
+                # Split-complex multiplication: (a+ib) * (c+id) = (ac-bd) + i(ad+bc)
+                # But for independent components: just multiply each part
+                delta_real = weighted_error.real * deriv_real
+                delta_imag = weighted_error.imag * deriv_imag
+                delta = complex(delta_real, delta_imag)
 
-            deltas_per_layer[j] = deltas
+                deltas.append(delta)
+
+                # Update bias
+                neuron.weights[0] += neuron.learningRate * delta
+
+                # Update input weights
+                for i in range(len(neuron.inputs)):
+                    grad = delta * neuron.inputs[i].conjugate()
+                    neuron.weights[i + 1] += neuron.learningRate * grad
+
+            deltas_per_layer[layer_idx] = deltas

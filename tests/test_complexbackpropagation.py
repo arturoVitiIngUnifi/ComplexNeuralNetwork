@@ -2,44 +2,69 @@ import unittest
 from network.ComplexNetwork import ComplexNetwork
 
 class TestComplexBackpropagationExact(unittest.TestCase):
+
     def setUp(self):
-        self.net = ComplexNetwork([2, 2, 1])
+        # 2 input → 2 hidden → 1 output
+        self.net = ComplexNetwork([2, 2, 1], learningRate=0.1)
 
         self.inputs = [1 + 0j, 0 + 1j]
         self.targets = [1 + 1j]
 
+        # ----- Hidden layer -----
         hidden_layer = self.net.layers[0]
-        hidden_layer[0].weights = [0.1 + 0.0j, 0.2 + 0.0j]
-        hidden_layer[1].weights = [0.3 + 0.0j, 0.4 + 0.0j]
-        hidden_layer[0].learningRate = 0.1
-        hidden_layer[1].learningRate = 0.1
 
-        # Estimated Weights
+        # weights = [bias, w1, w2]
+        hidden_layer[0].weights = [
+            0.0 + 0.0j,
+            0.1 + 0.0j,
+            0.2 + 0.0j
+        ]
+
+        hidden_layer[1].weights = [
+            0.0 + 0.0j,
+            0.3 + 0.0j,
+            0.4 + 0.0j
+        ]
+
+        # ----- Output layer -----
         output_neuron = self.net.layers[1][0]
-        output_neuron.weights = [0.5 + 0.0j, 0.6 + 0.0j]
-        output_neuron.learningRate = 0.1
+        output_neuron.weights = [
+            0.0 + 0.0j,
+            0.5 + 0.0j,
+            0.6 + 0.0j
+        ]
 
     def test_backpropagation_step_exact(self):
-        initial_outputs_hidden = [n.output() for n in self.net.layers[0]]
-        initial_output_final = self.net.layers[1][0].output()
 
+        initial_outputs = self.net.feedforward(self.inputs)
+        initial_output = initial_outputs[0]
+
+        old_weights = self.net.layers[1][0].weights.copy()
         self.net.backpropagation(self.inputs, self.targets)
 
-        new_outputs_hidden = [n.output() for n in self.net.layers[0]]
-        new_output_final = self.net.layers[1][0].output()
+        new_outputs = self.net.feedforward(self.inputs)
+        new_output = new_outputs[0]
 
-        # Verify output values
-        delta_real = (self.targets[0].real - initial_output_final.real)
-        delta_imag = (self.targets[0].imag - initial_output_final.imag)
-        self.assertTrue((new_output_final.real - initial_output_final.real) * delta_real > 0,
-                        "L'output reale non si è aggiornato nella direzione corretta.")
-        self.assertTrue((new_output_final.imag - initial_output_final.imag) * delta_imag > 0,
-                        "L'output immaginario non si è aggiornato nella direzione corretta.")
+        # Correctness of output direction
+        delta_real = self.targets[0].real - initial_output.real
+        delta_imag = self.targets[0].imag - initial_output.imag
 
-        # Check Weights
-        output_neuron = self.net.layers[1][0]
-        for old_w, new_w in zip([0.5 + 0.0j, 0.6 + 0.0j], output_neuron.weights):
-            self.assertNotAlmostEqual(old_w, new_w, msg="Il peso dell'output neuron non è cambiato.")
+        self.assertTrue(
+            (new_output.real - initial_output.real) * delta_real > 0,
+            "Parte reale non aggiornata nella direzione corretta"
+        )
+
+        self.assertTrue(
+            (new_output.imag - initial_output.imag) * delta_imag > 0,
+            "Parte immaginaria non aggiornata nella direzione corretta"
+        )
+
+        new_weights = self.net.layers[1][0].weights
+
+        for old_w, new_w in zip(old_weights, new_weights):
+            self.assertNotAlmostEqual(
+                old_w, new_w, msg="Un peso dell’output layer non è cambiato"
+            )
 
 
 if __name__ == "__main__":
