@@ -61,6 +61,7 @@ class Neuron:
             z += self.weights[i + 1] * x
         return z
 
+
     def output(self) -> complex:
         """
             Get Output from Activation Function.
