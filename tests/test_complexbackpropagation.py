@@ -40,7 +40,7 @@ class TestComplexBackpropagationExact(unittest.TestCase):
         initial_output = initial_outputs[0]
 
         old_weights = self.net.layers[1][0].weights.copy()
-        self.net.backpropagation(self.inputs, self.targets)
+        self.net.backpropagation_standard(self.inputs, self.targets)
 
         new_outputs = self.net.feedforward(self.inputs)
         new_output = new_outputs[0]

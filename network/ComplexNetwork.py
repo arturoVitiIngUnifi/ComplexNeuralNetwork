@@ -3,6 +3,8 @@ import numpy as np
 
 from typing import List, Optional, Tuple, Dict
 
+from scipy.linalg import solve_triangular
+
 from network.Neuron import Neuron, activation, linearActivation
 
 
@@ -242,16 +244,16 @@ class ComplexNetwork:
 
                 # Solve triangular system: R * ∆W = Q^T * δ
                 try:
-                    dW = np.linalg.solve(R_square, Q_H_delta_square)
+                    dW = solve_triangular(R_square, Q_H_delta_square, lower=False, check_finite=False)
                 except np.linalg.LinAlgError:
                     print(f"⚠ Warning: Singular matrix in QR solve for neuron {neuron_idx}")
                     # Fall back to least-squares
                     dW, _, _, _ = np.linalg.lstsq(A, delta, rcond=None)
 
             # Update weights with solution
-            neuron.weights[0] += self.learningRate * dW[0]  # bias weight
+            neuron.weights[0] += dW[0]  # bias weight
             for i in range(len(neuron.inputs)):
-                neuron.weights[i + 1] += self.learningRate * dW[i + 1]
+                neuron.weights[i + 1] += dW[i + 1]
 
             self.qr_applications += 1
 
@@ -371,8 +373,10 @@ class ComplexNetwork:
               1. Accumulate batch data through entire epoch
                  - Forward pass (store Z and activations)
                  - Accumulate matrices A and errors delta
+                 - Backpropagate hidden layers immediately (pre-QR deltas,
+                   consistent with current activations — avoids a second
+                   full pass over the dataset)
               2. At end of epoch: Apply QR batch correction to output layer
-              3. Backpropagate to hidden layers using deltas
 
             Algorithm (for use_qr_batch=False):
             ====================================
@@ -402,14 +406,21 @@ class ComplexNetwork:
             if self.use_qr_batch:
                 # BATCH QR METHOD
 
-                # STEP 1: Accumulate batch data for entire epoch
+                # STEP 1: single pass — forward, accumulate QR data,
+                #         and backprop hidden layers with pre-QR deltas.
+                #
+                #         Previously STEP 3 ran a second full loop over the
+                #         dataset after apply_qr_batch_correction(), causing
+                #         ~2x the work per epoch. Moving hidden backprop here
+                #         keeps the deltas consistent with the current
+                #         activations and halves the number of forward passes.
                 self.batch_data = {}
 
                 for r in indices:
                     inputs = xTrain[r]
                     targets = yTrain[r]
 
-                    # Forward pass storing Z values
+                    # Forward pass storing Z values and activations
                     outputs = self.feedforward_store_z(inputs)
 
                     # Accumulate data for QR batch correction
@@ -419,23 +430,15 @@ class ComplexNetwork:
                     sampleError = sum(abs(t - o) ** 2 for t, o in zip(targets, outputs)) / len(outputs)
                     totalError += sampleError
 
-                # STEP 2: Apply QR Batch Correction
-                self.apply_qr_batch_correction()
-
-                # STEP 3: Backpropagate to hidden layers
-                if len(self.layers) > 1:
-                    for r in indices:
-                        inputs = xTrain[r]
-                        targets = yTrain[r]
-
-                        # Forward pass
-                        self.feedforward_store_z(inputs)
-
-                        # Calculate deltas for output layer
+                    # Backpropagate hidden layers now, using pre-QR deltas
+                    # (target - Z computed before the output layer weights change).
+                    # This is consistent with the activations just computed above.
+                    if len(self.layers) > 1:
                         deltasOutput = self._backprop_output_layer_batch(targets)
-
-                        # Backprop to hidden layers
                         self._backprop_hidden_layer(deltasOutput, inputs)
+
+                # STEP 2: Apply QR Batch Correction to output layer
+                self.apply_qr_batch_correction()
 
             else:
                 # Standard Back Propagation
