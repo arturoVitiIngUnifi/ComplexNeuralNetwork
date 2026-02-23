@@ -39,7 +39,8 @@ Nella modalità QR, il layer di output non viene aggiornato campione per campion
 2. Successivamente deve essere risolto il sistema $A · ΔW \sim δ$  con la fattorizzazione $A=QR$
 3. Si minimizza $||\delta -A \Delta W||^2$
 4. Si aggiornano i pesi $ w \leftarrow w + \Delta W$
-5. 
+
+
 # Esperimenti
 ## Dataset dati satellitari - Predizione della temperatura
 ![qr_comparison_temperature.png](qr_comparison_temperature.png)
