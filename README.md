@@ -1,59 +1,73 @@
-# Complex Neural Network Development in Python
+# Complex-Valued Neural Network — Bachelor's Thesis
 
 ## Overview
-This repository contains the code and documentation for my Bachelor's Thesis project on developing Complex Neural Networks using Python. The goal of this project is to explore advanced architectures and algorithms in neural networks that can improve the performance of machine learning tasks.
 
-## Table of Contents
-1. [Introduction](#introduction)
-2. [Objectives](#objectives)
-3. [Methodology](#methodology)
-4. [Installation](#installation)
-5. [Usage](#usage)
-6. [Results](#results)
-7. [Conclusion](#conclusion)
-8. [References](#references)
+This repository contains the implementation and documentation for a Bachelor's Thesis project on **Complex-Valued Neural Networks (CVNNs)** in Python.
 
-## Introduction
-Neural networks have revolutionized the field of machine learning by enabling computers to learn from data without the need for explicit programming. This project focuses on creating a complex neural network model that can handle various types of data.
+The project implements and compares two training strategies:
 
-## Objectives
-- To design a complex neural network architecture
-- To implement the architecture in Python utilizing libraries such as TensorFlow and Keras
-- To evaluate the performance of the developed model against existing architectures
+- **Standard Backpropagation** — iterative gradient-based weight update applied to every sample.
+- **Batch QR Decomposition** — least-squares weight update for the output layer via QR factorisation, applied once per epoch.
 
-## Methodology
-The project involves the following steps:
-1. Literature review on current neural network architectures.
-2. Design of the complex neural network.
-3. Implementation of the model using Python.
-4. Testing and analysis of performance metrics.
+Both methods are evaluated against each other and validated against the relevant scientific literature, using three different test datasets.
+
+---
+
+## Project Structure
+
+```
+.
+├── network/
+│   ├── Neuron.py               # Complex neuron with split activation
+│   └── ComplexNetwork.py       # CVNN with backprop and QR training
+├── tests/                      # Unit tests
+├── main.py                     # Satellite data experiment
+├── testMackeyGlass.py          # Mackey-Glass time series experiment
+├── testComplexRelation.py      # Complex linear relations experiment
+└── requirements.txt
+```
+
+---
 
 ## Installation
-To set up the project locally, follow these steps:
-1. Clone the repository:
+
+1. Create and activate a virtual environment:
    ```bash
-   git clone https://github.com/arturoVitiIngUnifi/ComplexNeuralNetwork.git
+   python -m venv venv
+   source venv/bin/activate        # macOS / Linux
+   venv\Scripts\activate           # Windows
    ```
-2. Navigate to the project directory:
-   ```bash
-   cd ComplexNeuralNetwork
-   ```
-3. Install the required dependencies:
+
+2. Install the required dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
+---
+
 ## Usage
-To run the neural network, use the following command:
+
+### Satellite Data
 ```bash
 python main.py
 ```
 
-## Results
-The results of the experiments and evaluations will be documented in this section.
+### Mackey-Glass Time Series
+```bash
+python testMackeyGlass.py
+```
 
-## Conclusion
-This thesis project aims to contribute to the ongoing research in neural networks by developing a robust and complex architecture that enhances performance in various applications.
+### Complex Linear Relations
+```bash
+python testComplexRelation.py
+```
 
-## References
-Include relevant academic papers, books, and articles that were referenced during the development of this project.
+---
+
+## Running Tests
+
+```bash
+python -m pytest tests/
+```
+
+---
