@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from network.ComplexNetwork import ComplexNetwork
 import time
 import matplotlib.pyplot as plt
@@ -7,20 +6,13 @@ import matplotlib.gridspec as gridspec
 
 
 def generate_mackey_glass(
-    length=10000,
-    tau=17,
-    beta=0.2,
-    gamma=0.1,
-    n=10,
-    delta_t=1,
-    seed=0
+    length=10000, tau=17, beta=0.2, gamma=0.1, n=10, delta_t=1, seed=0
 ):
     np.random.seed(seed)
 
     history_length = tau + 1
     x = np.zeros(length + history_length)
 
-    # inizializzazione
     x[:history_length] = 1.2
 
     for t in range(history_length, length + history_length - 1):
@@ -33,12 +25,12 @@ def generate_mackey_glass(
 def str_to_complex(s):
     return complex(s.replace(' ', ''))
 
-def create_dataset(series, window=5):
-    X, Y = [], []
-    for i in range(len(series) - window):
-        X.append(series[i:i+window])
-        Y.append(series[i+window])
-    return np.array(X), np.array(Y)
+def create_dataset(seriesr, windowr=5):
+    Xr, Yr = [], []
+    for ir in range(len(seriesr) - windowr):
+        Xr.append(seriesr[ir:ir + windowr])
+        Yr.append(seriesr[ir + windowr])
+    return np.array(Xr), np.array(Yr)
 
 
 series = generate_mackey_glass(
@@ -54,11 +46,8 @@ series = generate_mackey_glass(
 window = 5
 X, Y = create_dataset(series, window)
 
-# opzionale: normalizzazione (consigliata)
 X = (X - np.mean(X)) / np.std(X)
 Y = (Y - np.mean(Y)) / np.std(Y)
-
-# Convertiamo in complessi (parte immaginaria = 0)
 X = X.astype(np.complex128)
 Y = Y.astype(np.complex128).reshape(-1, 1)
 
@@ -212,4 +201,4 @@ ax6.grid(axis="y", alpha=0.3)
 
 plt.savefig("qr_comparison.png", dpi=150, bbox_inches="tight")
 plt.show()
-print("\nGrafico salvato come 'qr_comparison.png'")
+print("\nPlot Saved")

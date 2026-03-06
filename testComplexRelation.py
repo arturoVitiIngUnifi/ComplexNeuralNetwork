@@ -164,4 +164,4 @@ ax6.grid(axis="y", alpha=0.3)
 
 plt.savefig("qr_comparison.png", dpi=150, bbox_inches="tight")
 plt.show()
-print("\nGrafico salvato come 'qr_comparison.png'")
+print("\nPlot Saved")
