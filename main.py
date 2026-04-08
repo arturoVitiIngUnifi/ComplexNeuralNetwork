@@ -38,7 +38,7 @@ Y_test_scaled = Y_scaler.transform(Y_test)
 
 EPOCHS    = 1000
 THRESHOLD = 1e-6
-ARCH      = [50, 30, 1]
+ARCH      = [50, 60, 1]
 
 results = {}
 
